@@ -187,6 +187,7 @@ function assertModelRoutingGuides() {
     assert.match(content, /does\s+not modify `opencode\.json` or `opencode\.jsonc`/, `${guide} must say the installer does not mutate OpenCode configuration`);
     assert.match(content, /falls back to\s+`general`/, `${guide} must document the general fallback`);
     assert.match(content, /refuses to overwrite an\s+existing profile if it finds a collision/, `${guide} must document collision refusal`);
+    assert.match(content, /edit `superpowers-models\.json`, deliberately remove or\s+rename all three generated profiles, then rerun the installer/, `${guide} must require removing or renaming all generated profiles before an update`);
     for (const forbidden of ['zai-org/GLM-5.3', 'z-ai/glm-5.3-flash', 'xiaomi/mimo-v2.5']) {
       assert.doesNotMatch(content, new RegExp(escapeRegExp(forbidden)), `${guide} must not prescribe ${forbidden}`);
     }

@@ -91,9 +91,10 @@ If a requested role is unavailable, the Superpowers controller falls back to
 `general` and states that model-role routing is not installed.
 
 To update routing, edit `superpowers-models.json`, deliberately remove or
-rename only the relevant profile, then rerun the installer. To remove routing,
-remove only these three copied profiles from the `--config-dir` directory you
-selected; do not use a glob:
+rename all three generated profiles, then rerun the installer. This preserves
+the installer's atomic three-profile install and no-overwrite safety. To remove
+routing, remove only these three copied profiles from the `--config-dir`
+directory you selected; do not use a glob:
 
 - `agents/superpowers-expert.md`
 - `agents/superpowers-main.md`
