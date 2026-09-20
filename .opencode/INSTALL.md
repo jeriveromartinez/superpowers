@@ -40,10 +40,21 @@ Verify by asking: "Tell me about your superpowers"
 
 ### Model routing (OpenCode V2)
 
-Set up the providers that enable the models below before installing the
-profiles. The installer only copies profiles into the OpenCode `agents`
-directory, does not modify `opencode.json` or `opencode.jsonc`, and refuses to
-overwrite an existing profile if it finds a collision.
+Choose the provider/model values that suit your OpenCode setup. Superpowers
+does not configure providers or manage credentials. Store your choices in a
+local, user-owned `superpowers-models.json` file with exactly this schema:
+
+```json
+{
+  "expert": "provider/model",
+  "main": "provider/model",
+  "economic": "provider/model"
+}
+```
+
+The installer only copies profiles into the OpenCode `agents` directory, does
+not modify `opencode.json` or `opencode.jsonc`, and refuses to overwrite an
+existing profile if it finds a collision.
 
 Run the following commands from the root of your checked-out fork directory,
 which contains `scripts/install-opencode-model-routing.mjs`. These profiles
@@ -53,38 +64,38 @@ project-local `node_modules/superpowers` directory for this command.
 **PowerShell:**
 
 ```powershell
-node .\scripts\install-opencode-model-routing.mjs --config-dir "$HOME\.config\opencode"
+node .\scripts\install-opencode-model-routing.mjs --config-dir "$HOME\.config\opencode" --models-file .\superpowers-models.json
 opencode models
 ```
 
 **POSIX:**
 
 ```bash
-node ./scripts/install-opencode-model-routing.mjs --config-dir "$HOME/.config/opencode"
+node ./scripts/install-opencode-model-routing.mjs --config-dir "$HOME/.config/opencode" --models-file ./superpowers-models.json
 opencode models
 ```
 
-The installed roles and models are:
+The installed profiles use the corresponding values from the models file:
 
-- `superpowers-expert` — `zai-org/GLM-5.3`
-- `superpowers-main` — `z-ai/glm-5.3-flash`
-- `superpowers-economic` — `xiaomi/mimo-v2.5`
+- `superpowers-expert` uses `expert` for demanding specialist work.
+- `superpowers-main` uses `main` for the primary agent.
+- `superpowers-economic` uses `economic` for lower-cost delegated work.
 
-For a new MAIN session, select the model explicitly (works in either shell):
+For a primary MAIN session, use the `main` value from `superpowers-models.json`:
 
 ```text
-opencode run --model z-ai/glm-5.3-flash "Implement the next task"
+opencode run --model <the-main-value-from-superpowers-models.json> ...
 ```
 
-Alternatively, set the root `model` field in your own OpenCode configuration
-to `"z-ai/glm-5.3-flash"`. Switching an existing session's primary agent
-does not change its selected model.
+Switching an existing agent does not change its selected model.
 
 If a requested role is unavailable, the Superpowers controller falls back to
 `general` and states that model-role routing is not installed.
 
-To uninstall routing, remove only the three copied profiles from the
-`--config-dir` directory you selected:
+To update routing, edit `superpowers-models.json`, deliberately remove or
+rename only the relevant profile, then rerun the installer. To remove routing,
+remove only these three copied profiles from the `--config-dir` directory you
+selected; do not use a glob:
 
 - `agents/superpowers-expert.md`
 - `agents/superpowers-main.md`

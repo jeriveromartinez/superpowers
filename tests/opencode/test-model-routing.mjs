@@ -80,6 +80,8 @@ try {
   assert.match(V1_MAPPING, /`task` with `subagent_type: "general"`/, 'V1 routing must retain the general task mapping');
   assert.doesNotMatch(V1_MAPPING, /superpowers-expert/, 'V1 routing must not include V2 model profiles');
 
+  assertModelRoutingGuides();
+
   const configDir = path.join(tempRoot, 'success-config');
   const success = install(configDir, validModelsFile);
   assert.equal(success.status, 0, `expected successful install: ${success.stderr}`);
@@ -161,6 +163,37 @@ fs.writeFileSync = function(destination, content, options) {
 function assertNoAgents(configDir) {
   assert.ok(!fs.existsSync(configDir), `invalid input must not create config directory ${configDir}`);
   assert.ok(!fs.existsSync(path.join(configDir, 'agents')), `invalid input must not create agents directory ${configDir}`);
+}
+
+function assertModelRoutingGuides() {
+  for (const guide of ['.opencode/INSTALL.md', 'docs/README.opencode.md']) {
+    const content = fs.readFileSync(path.join(repoRoot, guide), 'utf8');
+    for (const expected of [
+      '--models-file',
+      '"expert"',
+      '"main"',
+      '"economic"',
+      'provider/model',
+      'opencode models',
+      'superpowers-expert',
+      'superpowers-main',
+      'superpowers-economic',
+      'agents/superpowers-expert.md',
+      'agents/superpowers-main.md',
+      'agents/superpowers-economic.md',
+    ]) {
+      assert.match(content, new RegExp(escapeRegExp(expected)), `${guide} must document ${expected}`);
+    }
+    assert.match(content, /does\s+not modify `opencode\.json` or `opencode\.jsonc`/, `${guide} must say the installer does not mutate OpenCode configuration`);
+    assert.match(content, /falls back to\s+`general`/, `${guide} must document the general fallback`);
+    assert.match(content, /refuses to overwrite an\s+existing profile if it finds a collision/, `${guide} must document collision refusal`);
+    for (const forbidden of ['zai-org/GLM-5.3', 'z-ai/glm-5.3-flash', 'xiaomi/mimo-v2.5']) {
+      assert.doesNotMatch(content, new RegExp(escapeRegExp(forbidden)), `${guide} must not prescribe ${forbidden}`);
+    }
+    assert.match(content, /```powershell\s+node \.\\scripts\\install-opencode-model-routing\.mjs --config-dir "\$HOME\\\.config\\opencode" --models-file \.\\superpowers-models\.json\s+opencode models\s+```/m, `${guide} must include the PowerShell command with both required flags`);
+    assert.match(content, /```bash\s+node \.\/scripts\/install-opencode-model-routing\.mjs --config-dir "\$HOME\/\.config\/opencode" --models-file \.\/superpowers-models\.json\s+opencode models\s+```/m, `${guide} must include the POSIX command with both required flags`);
+    assert.match(content, /opencode run --model <the-main-value-from-superpowers-models\.json> \.\.\./, `${guide} must explain how MAIN uses the main models-file value`);
+  }
 }
 
 function runInstaller(...args) {
