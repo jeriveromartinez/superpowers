@@ -2,49 +2,88 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const profileNames = [
-  'superpowers-expert.md',
-  'superpowers-main.md',
-  'superpowers-economic.md',
+const profiles = [
+  { key: 'expert', name: 'superpowers-expert.md' },
+  { key: 'main', name: 'superpowers-main.md' },
+  { key: 'economic', name: 'superpowers-economic.md' },
 ];
 
-const args = process.argv.slice(2);
-if (args.length !== 2 || args[0] !== '--config-dir' || !args[1] || args[1].startsWith('-')) {
-  console.error('Usage: node scripts/install-opencode-model-routing.mjs --config-dir <path>');
-  process.exit(1);
-}
-
-const configDir = path.resolve(args[1]);
-const agentsDir = path.join(configDir, 'agents');
-const scriptDir = path.dirname(fileURLToPath(import.meta.url));
-const sourceDir = path.resolve(scriptDir, '..', 'opencode', 'model-routing', 'agents');
-
 try {
+  const { configDir, modelsFile } = parseArguments(process.argv.slice(2));
+  const models = readModelsFile(modelsFile);
+  const agentsDir = path.join(configDir, 'agents');
+  const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+  const sourceDir = path.resolve(scriptDir, '..', 'opencode', 'model-routing', 'agents');
+
+  const copies = profiles.map(({ key, name }) => {
+    const source = path.join(sourceDir, name);
+    ensureFile(source);
+    return {
+      destination: path.join(agentsDir, name),
+      content: renderProfile(fs.readFileSync(source, 'utf8'), models[key]),
+    };
+  });
+
+  const collisions = copies.filter(({ destination }) => destinationExists(destination));
+  if (collisions.length > 0) {
+    throw new Error(collisions.map(({ destination }) => `Collision: ${destination}`).join('\n'));
+  }
+
   fs.mkdirSync(configDir, { recursive: true });
   fs.mkdirSync(agentsDir, { recursive: true });
   ensureDirectory(configDir);
   ensureDirectory(agentsDir);
 
-  const copies = profileNames.map((name) => ({
-    source: path.join(sourceDir, name),
-    destination: path.join(agentsDir, name),
-  }));
-
-  for (const { source } of copies) ensureFile(source);
-
-  const collisions = copies.filter(({ destination }) => destinationExists(destination));
-  if (collisions.length > 0) {
-    for (const { destination } of collisions) console.error(`Collision: ${destination}`);
-    process.exit(1);
-  }
-
-  for (const { source, destination } of copies) {
-    fs.copyFileSync(source, destination, fs.constants.COPYFILE_EXCL);
+  for (const { destination, content } of copies) {
+    fs.writeFileSync(destination, content, { flag: 'wx' });
     console.log(destination);
   }
 } catch (error) {
   console.error(error.message);
   process.exit(1);
+}
+
+function usage() {
+  return 'Usage: node scripts/install-opencode-model-routing.mjs --config-dir <path> --models-file <path>';
+}
+
+function parseArguments(args) {
+  const values = new Map();
+  for (let index = 0; index < args.length; index += 2) {
+    const flag = args[index];
+    const value = args[index + 1];
+    if (!['--config-dir', '--models-file'].includes(flag) || values.has(flag) || !value || value.startsWith('-')) throw new Error(usage());
+    values.set(flag, value);
+  }
+  if (args.length !== 4 || values.size !== 2) throw new Error(usage());
+  return {
+    configDir: path.resolve(values.get('--config-dir')),
+    modelsFile: path.resolve(values.get('--models-file')),
+  };
+}
+
+function readModelsFile(modelsFile) {
+  let models;
+  try {
+    models = JSON.parse(fs.readFileSync(modelsFile, 'utf8'));
+  } catch (error) {
+    throw new Error(`Invalid models file ${modelsFile}: ${error.message}`);
+  }
+  if (!models || Array.isArray(models) || typeof models !== 'object') throw new Error('Models file must contain a JSON object');
+  const expected = new Set(profiles.map(({ key }) => key));
+  const keys = Object.keys(models);
+  if (keys.length !== expected.size || keys.some((key) => !expected.has(key))) throw new Error('Models file must contain exactly: expert, main, economic');
+  for (const key of expected) {
+    if (typeof models[key] !== 'string' || !/^[^\r\n/]+\/[^\r\n/]+$/.test(models[key])) throw new Error(`Invalid model for ${key}: expected provider/model`);
+  }
+  return models;
+}
+
+function renderProfile(source, model) {
+  const token = '{{MODEL}}';
+  const occurrences = source.split(token).length - 1;
+  if (occurrences !== 1) throw new Error('Expected exactly one {{MODEL}} token in profile template');
+  return source.replace(token, model);
 }
 
 function ensureDirectory(target) {
