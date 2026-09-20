@@ -224,7 +224,7 @@ node ./scripts/install-opencode-model-routing.mjs --config-dir "$HOME/.config/op
 opencode models
 ```
 
-Describe role purposes, fallback to `general`, and collision refusal. State a primary MAIN session uses `opencode run --model <the-main-value-from-superpowers-models.json> ...`; switching an existing agent does not change its selected model. For updates, say to edit JSON, deliberately remove or rename only the relevant profile, and rerun the installer. List exact three removal targets with no glob.
+Describe role purposes, fallback to `general`, and collision refusal. State a primary MAIN session uses `opencode run --model <the-main-value-from-superpowers-models.json> ...`; switching an existing agent does not change its selected model. For updates, say to edit JSON, deliberately remove or rename all three generated profiles, and rerun the installer. The installer collision-preflights the entire three-profile set, so it does not support partial updates. List exact three removal targets with no glob.
 
 - [ ] **Step 4: Prove docs and full suite pass**
 

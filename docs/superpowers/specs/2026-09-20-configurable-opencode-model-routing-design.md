@@ -79,9 +79,11 @@ Exclusive writes prevent an intervening creation from being overwritten. The
 installer does not modify provider configuration, credentials, model catalogs,
 `opencode.json`, or `opencode.jsonc`.
 
-To change a role model, the user updates their JSON file and deliberately
-removes or renames the corresponding generated agent profile before running
-the installer again. This preserves the existing no-overwrite safety guarantee.
+To change any role model, the user updates their JSON file and deliberately
+removes or renames all three generated agent profiles before running the
+installer again. The installer preflights the complete three-profile set, so a
+remaining destination is a collision and prevents a partial update. This
+preserves the existing no-overwrite safety guarantee.
 
 ## Routing behavior
 
