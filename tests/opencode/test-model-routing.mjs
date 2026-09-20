@@ -12,7 +12,6 @@ const profiles = [
   ['superpowers-expert.md', 'zai-org/GLM-5.3'],
   ['superpowers-main.md', 'z-ai/glm-5.3-flash'],
   ['superpowers-economic.md', 'xiaomi/mimo-v2.5'],
-  ['superpowers-economic-fast.md', 'deepseek/deepseek-v4-flash'],
 ];
 const openCodeGuides = [
   '.opencode/INSTALL.md',
@@ -68,8 +67,8 @@ try {
     assert.match(guide, /unavailable[\s\S]{0,100}falls back to\s+`general`/, `${guidePath} must document general fallback`);
     assert.match(
       guide,
-      /remove only the four (?:copied|installed) profiles/,
-      `${guidePath} must limit removal to the four installed profiles`,
+      /remove only the three (?:copied|installed) profiles/,
+      `${guidePath} must limit removal to the three installed profiles`,
     );
     for (const [name] of profiles) {
       assert.match(guide, new RegExp('`agents/' + escapeRegExp(name) + '`'), `${guidePath} must name the exact removal target ${name}`);
@@ -81,7 +80,6 @@ try {
     'superpowers-expert',
     'superpowers-main',
     'superpowers-economic',
-    'superpowers-economic-fast',
     'architecture',
     'implementation',
     'exploration',

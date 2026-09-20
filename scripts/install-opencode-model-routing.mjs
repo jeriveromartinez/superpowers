@@ -6,7 +6,6 @@ const profileNames = [
   'superpowers-expert.md',
   'superpowers-main.md',
   'superpowers-economic.md',
-  'superpowers-economic-fast.md',
 ];
 
 const args = process.argv.slice(2);

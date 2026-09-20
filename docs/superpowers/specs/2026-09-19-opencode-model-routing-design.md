@@ -11,7 +11,7 @@ unchanged.
 This feature targets OpenCode V2 (2.0.4 or later). The existing OpenCode V1
 plugin remains compatible and keeps its current tool mapping. The feature does
 not add providers, credentials, or model definitions: OpenCode must already
-make the four supplied `provider/model` identifiers available.
+make the three supplied `provider/model` identifiers available.
 
 The supported roles are:
 
@@ -20,14 +20,13 @@ The supported roles are:
 | `superpowers-expert` | EXPERT | `zai-org/GLM-5.3` | Architecture, high-risk debugging, security-sensitive analysis, and final reviews. |
 | `superpowers-main` | MAIN | `z-ai/glm-5.3-flash` | Normal implementation and multi-step task execution. |
 | `superpowers-economic` | ECONOMIC | `xiaomi/mimo-v2.5` | Repository exploration, routine research, and low-risk mechanical work. |
-| `superpowers-economic-fast` | ECONOMIC_FAST | `deepseek/deepseek-v4-flash` | Short classification, focused lookups, and inexpensive validation. |
 
 ## Architecture
 
 OpenCode discovers custom agents from a user's global
 `~/.config/opencode/agents/` directory or from a project's `.opencode/agents/`
 directory. The V2 plugin agent transform can update or remove catalog entries,
-but cannot add a new one. Therefore the fork will ship four Markdown agent
+but cannot add a new one. Therefore the fork will ship three Markdown agent
 profiles and an explicit, idempotent installer that copies them into a caller
 selected OpenCode configuration directory.
 
@@ -39,7 +38,7 @@ keeps existing providers, permissions, and agent customizations intact.
 
 The existing V2 bootstrap will retain its OpenCode tool mapping and gain a
 small routing section. When a Superpowers workflow delegates a child task, it
-will select one of the four `superpowers-*` agents according to the table
+will select one of the three `superpowers-*` agents according to the table
 above. If the controller cannot see the requested profile, it must fall back
 to the built-in `general` agent and state that routing needs installation; it
 must not invoke an unknown agent ID. The routing section applies only to V2,
@@ -71,7 +70,7 @@ not claimed to change that session's model.
    verification with `opencode models`, role selection, fallback behavior, and
    how to remove the copied profiles manually.
 5. `tests/opencode/test-model-routing.mjs` exercises the installer against a
-   temporary directory, asserts all four generated profiles' frontmatter and
+   temporary directory, asserts all three generated profiles' frontmatter and
    model IDs, verifies a collision leaves the user's file unchanged, and
    verifies the V2 bootstrap contains every role and the `general` fallback.
    `tests/opencode/run-tests.sh` will include this test in the non-integration
@@ -79,7 +78,7 @@ not claimed to change that session's model.
 
 ## Data Flow
 
-1. The user configures OpenCode providers and validates the four models with
+1. The user configures OpenCode providers and validates the three models with
    `opencode models`.
 2. The user runs the supplied installer once against their OpenCode config
    directory.
@@ -111,4 +110,4 @@ installation, exact profile metadata, non-overwrite collision handling, and
 the V2-only bootstrap guidance. The full non-integration OpenCode suite runs
 through `bash tests/opencode/run-tests.sh`; integration tests are reported
 separately because they require an installed and authenticated OpenCode
-runtime with all four models enabled.
+runtime with all three models enabled.

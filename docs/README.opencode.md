@@ -67,7 +67,6 @@ The installed roles and models are:
 - `superpowers-expert` — `zai-org/GLM-5.3`
 - `superpowers-main` — `z-ai/glm-5.3-flash`
 - `superpowers-economic` — `xiaomi/mimo-v2.5`
-- `superpowers-economic-fast` — `deepseek/deepseek-v4-flash`
 
 For a new MAIN session, select the model explicitly (works in either shell):
 
@@ -82,13 +81,12 @@ does not change its selected model.
 If a requested role is unavailable, the Superpowers controller falls back to
 `general` and states that model-role routing is not installed.
 
-To uninstall routing, remove only the four copied profiles from the
+To uninstall routing, remove only the three copied profiles from the
 `--config-dir` directory you selected:
 
 - `agents/superpowers-expert.md`
 - `agents/superpowers-main.md`
 - `agents/superpowers-economic.md`
-- `agents/superpowers-economic-fast.md`
 
 ### Migrating from the old symlink-based install (V1)
 
