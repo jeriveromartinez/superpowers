@@ -254,7 +254,7 @@ Expected: only planned routing assets and design/plan documents change; no white
 
 - [ ] **Step 2: Verify no stale models remain**
 
-Run: `rg -n 'zai-org/GLM-5\.3|z-ai/glm-5\.3-flash|xiaomi/mimo-v2\.5|deepseek/deepseek-v4-flash|economic-fast' .opencode/INSTALL.md .opencode/plugins/superpowers.js docs/README.opencode.md opencode/model-routing scripts/install-opencode-model-routing.mjs`.
+Run: `rg -n 'zai-org/GLM-5\.3|z-ai/glm-5\.3-flash|xiaomi/mimo-v2\.5' .opencode/INSTALL.md .opencode/plugins/superpowers.js docs/README.opencode.md opencode/model-routing scripts/install-opencode-model-routing.mjs`.
 
 Expected: no matches. Revise or remove any retained document that communicates an unsupported fixed default.
 
