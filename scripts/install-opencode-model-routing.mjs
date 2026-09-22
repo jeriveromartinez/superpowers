@@ -74,7 +74,7 @@ function readModelsFile(modelsFile) {
   const keys = Object.keys(models);
   if (keys.length !== expected.size || keys.some((key) => !expected.has(key))) throw new Error('Models file must contain exactly: expert, main, economic');
   for (const key of expected) {
-    if (typeof models[key] !== 'string' || !/^[^\r\n/]+\/[^\r\n/]+$/.test(models[key])) throw new Error(`Invalid model for ${key}: expected provider/model`);
+    if (typeof models[key] !== 'string' || !/^[^\r\n/]+\/[^\r\n]+$/.test(models[key])) throw new Error(`Invalid model for ${key}: expected provider/model`);
   }
   return models;
 }
@@ -83,7 +83,7 @@ function renderProfile(source, model) {
   const token = '{{MODEL}}';
   const occurrences = source.split(token).length - 1;
   if (occurrences !== 1) throw new Error('Expected exactly one {{MODEL}} token in profile template');
-  return source.replace(token, model);
+  return source.replace(token, () => JSON.stringify(model));
 }
 
 function ensureDirectory(target) {

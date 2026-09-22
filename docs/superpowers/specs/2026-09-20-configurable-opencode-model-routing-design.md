@@ -36,10 +36,12 @@ is exactly:
 
 For example, a user may choose Claude for `expert`, OpenAI for `main`, and
 another provider for `economic`. The values are opaque OpenCode model IDs: the
-installer requires non-empty strings containing a provider/model separator but
-does not contact a provider or claim that a model is available. It rejects a
+installer requires a nonempty provider before the first `/` and a nonempty
+model identifier after it, allowing additional `/` characters in the model
+identifier. It does not contact a provider or claim that a model is available. It rejects a
 missing file, malformed JSON, an array or non-object root value, missing roles,
-unknown roles, non-string values, empty strings, and values without `/`.
+unknown roles, non-string values, empty provider or model identifiers, values
+without `/`, and values containing carriage returns or line feeds.
 
 The file is intentionally not discovered automatically, copied, modified, or
 committed by the installer. This makes the selected providers explicit and
@@ -68,22 +70,29 @@ when necessary, and writes these files:
 - `agents/superpowers-main.md`
 - `agents/superpowers-economic.md`
 
-Each generated profile uses the selected model in its `model:` frontmatter and
-retains the repository-supplied role description and prompt body. The source
-profiles are templates and contain no fixed model identifier.
+Each generated profile uses the selected model in its `model:` frontmatter as
+one JSON-compatible quoted YAML scalar. Literal replacement preserves dollar
+sequences and YAML-significant characters without frontmatter injection. Each
+profile retains the repository-supplied role description and prompt body. The
+source profiles are templates and contain no fixed model identifier.
 
 Before writing, the installer validates every input and template, then checks
 all destination paths. If any destination already exists, including a dangling
 symlink, it reports every collision and exits without writing any profile.
-Exclusive writes prevent an intervening creation from being overwritten. The
+Exclusive writes prevent an intervening creation from being overwritten.
+The three writes are sequential, not transactional. If another process creates
+a later destination after preflight, earlier generated profiles remain, the
+colliding file is preserved, and later profiles are not written. No rollback
+removes files; the user inspects the resulting files before retrying. The
 installer does not modify provider configuration, credentials, model catalogs,
 `opencode.json`, or `opencode.jsonc`.
 
 To change any role model, the user updates their JSON file and deliberately
 removes or renames all three generated agent profiles before running the
 installer again. The installer preflights the complete three-profile set, so a
-remaining destination is a collision and prevents a partial update. This
-preserves the existing no-overwrite safety guarantee.
+remaining destination found during preflight is a collision and prevents any
+profile writes. This preserves the existing no-overwrite safety guarantee;
+the concurrent-creation limitation above still applies.
 
 ## Routing behavior
 
@@ -111,9 +120,12 @@ The model-routing test will prove that:
 2. Invalid model configuration files fail with an actionable error and leave
    no generated profiles.
 3. A valid configuration produces exactly three profiles whose `model:` fields
-   equal the user's chosen strings verbatim.
-4. Existing files, dangling symlinks, and a destination created during copying
-   are preserved.
+   equal the user's chosen strings verbatim after parsing, including nested
+   model identifiers, dollar replacement sequences, and YAML-significant
+   characters, without changing surrounding frontmatter or prompt text.
+4. Existing files, dangling symlinks, and a destination created during writing
+   are preserved. A collision introduced at the second write leaves the first
+   generated profile intact and prevents the third write.
 5. The V2 routing policy contains only role names and a `general` fallback;
    the V1 mapping stays free of these profiles.
 6. Guides document the JSON configuration flow without naming a fixed model.

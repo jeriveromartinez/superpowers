@@ -52,6 +52,11 @@ local, user-owned `superpowers-models.json` file with exactly this schema:
 }
 ```
 
+Each value must have a nonempty provider before the first `/` and a nonempty
+model identifier after it. Model identifiers may contain additional `/`
+characters. Carriage returns and line feeds are rejected; other characters
+are preserved in a quoted YAML scalar.
+
 The installer only copies profiles into the OpenCode `agents` directory, does
 not modify `opencode.json` or `opencode.jsonc`, and refuses to overwrite an
 existing profile if it finds a collision.
@@ -93,10 +98,15 @@ If a requested role is unavailable, the Superpowers controller falls back to
 `general` and states that model-role routing is not installed.
 
 To update routing, edit `superpowers-models.json`, deliberately remove or
-rename all three generated profiles, then rerun the installer. This preserves
-the installer's atomic three-profile install and no-overwrite safety. To remove
-routing, remove only these three copied profiles from the `--config-dir`
-directory you selected; do not use a glob:
+rename all three generated profiles, then rerun the installer. The installer
+checks all three destinations before writing, and any existing destination
+stops installation without writing profiles. Writes then run sequentially with
+exclusive creation, so installation is not transactional: if another process
+creates a later destination after the checks, earlier generated profiles
+remain, the colliding file is preserved, and later profiles are not written.
+Inspect those files before retrying. To remove routing, remove only these three
+generated profiles from the `--config-dir` directory you selected; do not use a
+glob:
 
 - `agents/superpowers-expert.md`
 - `agents/superpowers-main.md`

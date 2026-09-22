@@ -17,8 +17,9 @@
 - Do not embed a provider/model ID in source profiles, bootstrap mappings, or guides.
 - Add no dependencies, providers, credentials, catalogs, or automatic edits to `opencode.json` or `opencode.jsonc`.
 - Require one `--config-dir <path>` and one `--models-file <path>` flag in either order; reject duplicate, missing, empty, option-like, and positional values before filesystem mutation.
-- Require exactly JSON keys `expert`, `main`, and `economic`; each is a non-empty single-line `provider/model` string.
+- Require exactly JSON keys `expert`, `main`, and `economic`; each has a nonempty provider before the first `/` and a nonempty remainder after it, allowing nested model identifiers but rejecting carriage returns and line feeds.
 - Preserve no-overwrite behavior: preflight all destinations, treat dangling symlinks as collisions, and exclusively create targets.
+- Describe the writes as sequential and non-transactional: a collision introduced after preflight can leave earlier generated profiles in place while preserving the colliding file and skipping later writes.
 
 ---
 
@@ -90,7 +91,7 @@ Add invalid CLI cases for missing, duplicate, option-like, and positional `--mod
 ]
 ```
 
-Use a valid models file for success, collision, dangling-symlink, and write-race cases. On success assert each `model:` equals `selectedModels[role]` exactly and the output lacks `{{MODEL}}`.
+Use a valid models file for success, collision, dangling-symlink, and write-race cases. Parse each emitted JSON-compatible quoted YAML `model:` scalar and assert its value equals the chosen string exactly. Include nested model identifiers, `$&`, dollar-backtick, and `# suffix` cases; verify the surrounding frontmatter and prompt body remain unchanged. Inject a race at both the first and second writes; assert user-owned collisions survive, earlier generated profiles remain intact, and subsequent profiles are absent.
 
 - [ ] **Step 2: Prove the changed test fails**
 
@@ -140,7 +141,7 @@ function readModelsFile(modelsFile) {
   const keys = Object.keys(models);
   if (keys.length !== expected.size || keys.some((key) => !expected.has(key))) throw new Error('Models file must contain exactly: expert, main, economic');
   for (const key of expected) {
-    if (typeof models[key] !== 'string' || !/^[^\\r\\n/]+\/[^\\r\\n/]+$/.test(models[key])) throw new Error(`Invalid model for ${key}: expected provider/model`);
+    if (typeof models[key] !== 'string' || !/^[^\r\n/]+\/[^\r\n]+$/.test(models[key])) throw new Error(`Invalid model for ${key}: expected provider/model`);
   }
   return models;
 }
@@ -157,7 +158,7 @@ function renderProfile(source, model) {
   const token = '{{MODEL}}';
   const occurrences = source.split(token).length - 1;
   if (occurrences !== 1) throw new Error('Expected exactly one {{MODEL}} token in profile template');
-  return source.replace(token, model);
+  return source.replace(token, () => JSON.stringify(model));
 }
 
 const copies = profiles.map(({ key, name }) => {
@@ -167,7 +168,7 @@ const copies = profiles.map(({ key, name }) => {
 });
 ```
 
-Retain `lstatSync` collision detection and all-destination preflight. Write each rendered target with `fs.writeFileSync(destination, content, { flag: 'wx' })`, preserving exclusive-create race protection.
+Retain `lstatSync` collision detection and all-destination preflight. Write each rendered target with `fs.writeFileSync(destination, content, { flag: 'wx' })`, preserving exclusive-create race protection. Do not add rollback: a concurrent collision on a later destination leaves the already generated profiles in place and the colliding user-owned file untouched.
 
 - [ ] **Step 6: Prove the focused test passes**
 
@@ -224,7 +225,7 @@ node ./scripts/install-opencode-model-routing.mjs --config-dir "$HOME/.config/op
 opencode models
 ```
 
-Describe role purposes, fallback to `general`, and collision refusal. State a primary MAIN session uses `opencode run --model <the-main-value-from-superpowers-models.json> ...`; switching an existing agent does not change its selected model. For updates, say to edit JSON, deliberately remove or rename all three generated profiles, and rerun the installer. The installer collision-preflights the entire three-profile set, so it does not support partial updates. List exact three removal targets with no glob.
+Describe role purposes, fallback to `general`, and collision refusal. State a primary MAIN session uses `opencode run --model <the-main-value-from-superpowers-models.json> ...`; switching an existing agent does not change its selected model. For updates, say to edit JSON, deliberately remove or rename all three generated profiles, and rerun the installer. The installer checks the entire three-profile set before writing, so any destination found at preflight prevents all profile writes. Explain that writes are sequential, not transactional: a later destination created concurrently after preflight can leave earlier generated profiles in place; the collision is preserved and later profiles are not written. Tell users to inspect the resulting files before retrying. List exact three removal targets with no glob.
 
 - [ ] **Step 4: Prove docs and full suite pass**
 

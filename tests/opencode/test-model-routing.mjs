@@ -55,7 +55,9 @@ try {
     ['blank.json', { expert: '   ', main: 'c/d', economic: 'e/f' }],
     ['no-slash.json', { expert: 'ab', main: 'c/d', economic: 'e/f' }],
     ['empty-side.json', { expert: 'a/', main: 'c/d', economic: 'e/f' }],
+    ['empty-provider.json', { expert: '/b', main: 'c/d', economic: 'e/f' }],
     ['newline.json', { expert: 'a/b\nmodel: injected', main: 'c/d', economic: 'e/f' }],
+    ['carriage-return.json', { expert: 'a/b\rmode: primary', main: 'c/d', economic: 'e/f' }],
   ]) {
     const invalidConfig = path.join(tempRoot, `invalid-${name}`);
     const invalid = install(invalidConfig, writeModelsFile(name, contents));
@@ -82,18 +84,33 @@ try {
 
   assertModelRoutingGuides();
 
+  const nestedModels = { ...selectedModels, expert: 'openrouter/anthropic/claude-sonnet-4' };
+  const nestedConfigDir = path.join(tempRoot, 'nested-model-config');
+  const nested = install(nestedConfigDir, writeModelsFile('nested-models.json', nestedModels));
+  assert.equal(nested.status, 0, `nested model identifiers must install: ${nested.stderr}`);
+  assertInstalledProfile(nestedConfigDir, 'superpowers-expert.md', nestedModels.expert);
+
+  for (const [index, model] of [
+    'provider/model$&',
+    'provider/model$`',
+    "provider/model$'",
+    'provider/model # suffix',
+    'provider/model" : injected',
+    'provider/model\\with\\escapes\tand-tab',
+  ].entries()) {
+    const literalConfig = path.join(tempRoot, `literal-model-config-${index}`);
+    const literalModels = Object.fromEntries(profiles.map(([role]) => [role, model]));
+    const literal = install(literalConfig, writeModelsFile(`literal-models-${index}.json`, literalModels));
+    assert.equal(literal.status, 0, `literal model must install: ${literal.stderr}`);
+    for (const [, name] of profiles) assertInstalledProfile(literalConfig, name, model);
+  }
+
   const configDir = path.join(tempRoot, 'success-config');
   const success = install(configDir, validModelsFile);
   assert.equal(success.status, 0, `expected successful install: ${success.stderr}`);
 
   for (const [role, name] of profiles) {
-    const installed = path.join(configDir, 'agents', name);
-    assert.ok(fs.existsSync(installed), `expected installed profile ${name}`);
-    const content = fs.readFileSync(installed, 'utf8');
-    assert.match(content, /^mode: all$/m, `${name} must set mode: all`);
-    assert.match(content, new RegExp(`^model: ${escapeRegExp(selectedModels[role])}$`, 'm'), `${name} must set its selected model`);
-    assert.doesNotMatch(content, /\{\{MODEL\}\}/, `${name} must render its model token`);
-    assert.match(content, /^description:\s*\S/m, `${name} must provide a nonempty description`);
+    assertInstalledProfile(configDir, name, selectedModels[role]);
   }
 
   const reversedConfigDir = path.join(tempRoot, 'reversed-config');
@@ -130,29 +147,35 @@ try {
     }
   }
 
-  const writeCollisionConfig = path.join(tempRoot, 'write-collision-config');
-  const writeCollisionTarget = path.join(writeCollisionConfig, 'agents', 'superpowers-expert.md');
-  const hookPath = path.join(tempRoot, 'inject-write-collision.cjs');
-  fs.writeFileSync(hookPath, `
+  for (const [collisionIndex, [, collisionName]] of profiles.slice(0, 2).entries()) {
+    const writeCollisionConfig = path.join(tempRoot, `write-collision-config-${collisionIndex}`);
+    const writeCollisionTarget = path.join(writeCollisionConfig, 'agents', collisionName);
+    const hookPath = path.join(tempRoot, `inject-write-collision-${collisionIndex}.cjs`);
+    fs.writeFileSync(hookPath, `
 const fs = require('node:fs');
 const path = require('node:path');
 const originalWriteFileSync = fs.writeFileSync;
 let injected = false;
 fs.writeFileSync = function(destination, content, options) {
-  if (!injected && path.basename(destination) === 'superpowers-expert.md' && options && options.flag === 'wx') {
+  if (!injected && path.basename(destination) === ${JSON.stringify(collisionName)} && options && options.flag === 'wx') {
     originalWriteFileSync(destination, 'user-owned-at-write\\n');
     injected = true;
   }
   return originalWriteFileSync.call(this, destination, content, options);
 };
 `);
-  const writeCollision = install(writeCollisionConfig, validModelsFile, [{
-    NODE_OPTIONS: `${process.env.NODE_OPTIONS || ''} --require=${hookPath}`.trim(),
-  }]);
-  assert.notEqual(writeCollision.status, 0, 'installer must fail when a destination appears during write');
-  assert.equal(fs.readFileSync(writeCollisionTarget, 'utf8'), 'user-owned-at-write\n', 'exclusive write must not overwrite a destination created during write');
-  for (const [, name] of profiles.slice(1)) {
-    assert.ok(!fs.existsSync(path.join(writeCollisionConfig, 'agents', name)), `write collision must not copy ${name}`);
+    const writeCollision = install(writeCollisionConfig, validModelsFile, [{
+      NODE_OPTIONS: `${process.env.NODE_OPTIONS || ''} --require=${hookPath}`.trim(),
+    }]);
+    assert.notEqual(writeCollision.status, 0, 'installer must fail when a destination appears during write');
+    assert.equal(fs.readFileSync(writeCollisionTarget, 'utf8'), 'user-owned-at-write\n', 'exclusive write must not overwrite a destination created during write');
+    for (const [role, name] of profiles.slice(0, collisionIndex)) {
+      assertInstalledProfile(writeCollisionConfig, name, selectedModels[role]);
+      assert.ok(writeCollision.stdout.includes(path.join(writeCollisionConfig, 'agents', name)), 'installer must report the generated profile retained before a later collision');
+    }
+    for (const [, name] of profiles.slice(collisionIndex + 1)) {
+      assert.ok(!fs.existsSync(path.join(writeCollisionConfig, 'agents', name)), `write collision must not write later profile ${name}`);
+    }
   }
 
   console.log('PASS: OpenCode model routing validates JSON-driven profiles without overwriting user files');
@@ -163,6 +186,21 @@ fs.writeFileSync = function(destination, content, options) {
 function assertNoAgents(configDir) {
   assert.ok(!fs.existsSync(configDir), `invalid input must not create config directory ${configDir}`);
   assert.ok(!fs.existsSync(path.join(configDir, 'agents')), `invalid input must not create agents directory ${configDir}`);
+}
+
+function assertInstalledProfile(configDir, name, expectedModel) {
+  const content = fs.readFileSync(path.join(configDir, 'agents', name), 'utf8');
+  const modelLines = [...content.matchAll(/^model: (.*)$/gm)];
+  assert.equal(modelLines.length, 1, `${name} must contain exactly one model field`);
+  // JSON strings are a YAML double-quoted scalar subset. Decode the emitted
+  // scalar instead of comparing its spelling or adding a YAML dependency.
+  assert.equal(JSON.parse(modelLines[0][1]), expectedModel, `${name} must preserve the exact model value`);
+  const template = fs.readFileSync(path.join(repoRoot, 'opencode', 'model-routing', 'agents', name), 'utf8');
+  assert.equal(
+    content.replace(/^model: .*$/m, 'model: {{MODEL}}'),
+    template,
+    `${name} must preserve the surrounding frontmatter and prompt without injection`,
+  );
 }
 
 function assertModelRoutingGuides() {
